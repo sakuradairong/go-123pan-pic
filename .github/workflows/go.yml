@@ -1,0 +1,52 @@
+name: Go Build & Release
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:  # 矩阵策略：一次触发自动在多个平台并发编译
+        include:
+          - os: linux
+            arch: amd64
+            name: imagehost-linux-amd64
+          - os: linux
+            arch: arm64
+            name: imagehost-linux-arm64
+          - os: windows
+            arch: amd64
+            name: imagehost-windows-amd64.exe
+          - os: darwin
+            arch: amd64
+            name: imagehost-macos-amd64
+          - os: darwin
+            arch: arm64
+            name: imagehost-macos-arm64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        cache: true
+
+    - name: Build Binary
+      env:
+        GOOS: ${{ matrix.os }}
+        GOARCH: ${{ matrix.arch }}
+      run: |
+        mkdir -p dist
+        go build -v -o dist/${{ matrix.name }} ./cmd/main.go
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.name }}
+        path: dist/${{ matrix.name }}
