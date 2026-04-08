@@ -1,0 +1,19 @@
+# 123pan 私人图床配置文件
+
+# 服务器端口
+port: 8080
+
+# 123云盘开放平台应用配置 (用来自动获取及刷新 access_token)
+client_id: ""
+client_secret: ""
+
+# 123云盘图床专属存放目录的 ID (例如: yk6baz03t0l000...)
+parent_file_id: ""
+
+# --- 核心安全屏障与攻防配置 ---
+# 全局防御性访问密钥 AuthToken (必填！防止公网暴露被任意上传或删除)
+api_token: "PRIVATE_123_KEY"
+
+# 自定义直链域名 (可选，用于前缀拼接，例如: https://img.example.com)
+# 上传和获取文件列表时，如果填写了此项可以覆盖默认下发的防盗链 URL
+custom_domain: ""

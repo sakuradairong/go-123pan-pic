@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>123pan | 私人图床</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部控制台 -->
+        <header class="glass-nav">
+            <div class="logo">
+                <span class="gradient-text">123pan</span> 私人图床
+            </div>
+            <div class="stats" id="stats-counter" onclick="showAuthModal()" style="cursor: pointer" title="点击重新配置密钥">加载中...</div>
+        </header>
+
+        <main>
+            <!-- 上传交互区 -->
+            <section class="upload-section">
+                <div class="drop-zone glass-panel" id="drop-zone">
+                    <input type="file" id="file-input" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.bmp" hidden>
+                    <div class="drop-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <h3>拖拽图片至此处上传</h3>
+                        <p>支持拖拽、<span class="highlight">Ctrl+V 粘贴</span> 或直接点击选择</p>
+                    </div>
+                </div>
+                <!-- 进度状态管理 -->
+                <div id="upload-queue" class="upload-queue"></div>
+            </section>
+
+            <!-- 在线相册与直链瀑布流视图 -->
+            <section class="gallery-section">
+                <div class="gallery-header">
+                    <h2>相册空间</h2>
+                    <button class="btn-refresh glass-btn" onclick="loadImages()">
+                        刷新列表
+                    </button>
+                </div>
+                <div class="gallery-grid" id="gallery-grid">
+                    <!-- 通过前端 JS 渲染 DOM 插入 -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 优美的右下角弹窗 -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- 授权解锁终端 -->
+    <div id="auth-modal" class="auth-modal" style="display: none;">
+        <div class="auth-box glass-panel">
+            <h2>🔒 身份验证</h2>
+            <p>系统已开启安全保护。<br>请输入您在配置中设置的 api_token 以继续。</p>
+            <input type="password" id="auth-input" placeholder="请输入 API Token..." />
+            <button class="glass-btn btn-primary" onclick="saveAuth()">确认验证</button>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
