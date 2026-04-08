@@ -8,6 +8,10 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# 【必需权限声明】：默认情况下的 GitHub Token 只有读能力。赋予 contents: write 才能创建 Release 页面并上传附件
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
