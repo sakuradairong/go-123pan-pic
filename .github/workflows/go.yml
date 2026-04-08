@@ -3,6 +3,8 @@ name: Go Build & Release
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - 'v*'  # 监听形如 v1.0, v2.0 的提交签发事件以触发正式 Release
   pull_request:
     branches: [ "main" ]
 
@@ -10,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
-      matrix:  # 矩阵策略：一次触发自动在多个平台并发编译
+      matrix:
         include:
           - os: linux
             arch: amd64
@@ -45,8 +47,16 @@ jobs:
         mkdir -p dist
         go build -v -o dist/${{ matrix.name }} ./cmd/main.go
         
-    - name: Upload Artifact
+    - name: Upload Artifact (For standard push)
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.name }}
         path: dist/${{ matrix.name }}
+
+    # 关键追加：当检测到 Tag 标签推入时，自动化传给 Release！
+    - name: Upload to GitHub Releases
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: dist/${{ matrix.name }}
+        generate_release_notes: true
