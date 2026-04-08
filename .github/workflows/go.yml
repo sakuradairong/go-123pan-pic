@@ -108,3 +108,11 @@ jobs:
           # 借用 Github 的高速缓存，让你后续的打包时间缩短成几秒！
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Sync README to DockerHub (自动更新主页排版)
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/123pan-imagehost
+          readme-filepath: ./README.md

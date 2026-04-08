@@ -129,7 +129,7 @@ docker run -d \
   -e PARENT_FILE_ID="" \
   -e API_TOKEN="PRIVATE_123_KEY" \
   -e TZ="Asia/Shanghai" \
-  你的用户名/123pan-imagehost:latest
+  rainysyc/123pan-imagehost:latest
 ```
 
 ---
