@@ -75,6 +75,65 @@ go run cmd/main.go
 
 ---
 
+## 🐳 Docker 云原生极简部署
+
+如果你使用的是 NAS（如群晖、威联通）、软路由系统或原生携带 Docker 的云服务器，我们极力推荐使用此方案。
+
+本项目完全遵循 **云原生十二要素 (12-Factor App)** 规范。全核心参数支持通过 **环境变量 (Environment Variables)** 纯净直连，彻底告别繁杂凌乱的配置文件管理！
+
+#### 👉 使用 docker-compose 启动
+
+找一个空目录，新建 `docker-compose.yml` 文件并粘贴以下内容：
+
+```yaml
+version: '3.8'
+
+services:
+  imagehost:
+    # 替换为你刚才在 DockerHub 推送的独特镜像名！
+    image: 你的用户名/123pan-imagehost:latest 
+    container_name: 123pan-imagehost
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # 左侧是你要暴露在外网的访问端口
+    environment:
+      # 🌍 全量环保注入，零文件残留！
+      - PORT=8080
+      - CLIENT_ID=请去123pan开放平台申请必填
+      - CLIENT_SECRET=请去123pan开放平台申请必填
+      - PARENT_FILE_ID= # 专用上传目标的文件夹ID(如果传到根目录则删掉注释留空)
+      - API_TOKEN=PRIVATE_123_KEY # 拦截门票：强烈建议设为复杂密码防御公网盗刷
+      - TZ=Asia/Shanghai
+```
+
+然后在同一目录下无脑执行：
+```bash
+docker-compose up -d
+```
+启动瞬间，图床将在后台以最高效率纯净运转，一切大功告成！
+
+*(PS: 对于仍旧偏爱传统物理文件管理配置的老玩家，系统仍包含“智能回落构建”机制：当检测不到上述环境变量时，只要挂载一个空的 `/app/conf` 数据卷进去，系统便会依然乖乖在里面为你生成默认填报模板。)*
+
+#### 👉 使用原生 Docker 命令行 (纯净一行流)
+
+如果你连文件都不想建，就喜欢那种直接把代码拍在终端上一键起飞的爽感，可以直接复制并在终端运行以下指令：
+
+```bash
+docker run -d \
+  --name 123pan-imagehost \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -e PORT=8080 \
+  -e CLIENT_ID="【去123pan获取并在引流号内填入】" \
+  -e CLIENT_SECRET="【去123pan获取并在引号内填入】" \
+  -e PARENT_FILE_ID="" \
+  -e API_TOKEN="PRIVATE_123_KEY" \
+  -e TZ="Asia/Shanghai" \
+  你的用户名/123pan-imagehost:latest
+```
+
+---
+
 ## 🛠️ 第三方截图工具接入 (ShareX 等)
 
 本图床严格遵守 `RESTful API` 规范，对第三方工具接入极为友好。以下使用 **ShareX** 为例进行配置：

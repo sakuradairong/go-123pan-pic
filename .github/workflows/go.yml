@@ -64,3 +64,47 @@ jobs:
       with:
         files: dist/${{ matrix.name }}
         generate_release_notes: true
+
+  # ==== 🌟 新增的 DockerHub 全自动推送组 ====
+  docker:
+    # 避免在其他人的野鸡 PR 测试中乱发
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (支持多架构底层)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx (全能无缝打包引流引擎)
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract Docker metadata (自动打标签系统)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # 自动组合 "你的名字 / 项目名"
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/123pan-imagehost
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            # 原本的 latest 标签会在 master/main 分支时被自动赋予
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push to Space (核心推流指令)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # 借用 Github 的高速缓存，让你后续的打包时间缩短成几秒！
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

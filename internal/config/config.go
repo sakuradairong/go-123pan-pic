@@ -22,14 +22,29 @@ var GlobalConfig Config
 
 // InitConfig 读取并解析配置文件
 func InitConfig(cfgFile string) {
-	// 【部署容错机制】：判断是否是空白环境运行并进行智能抢险初始化
-	if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
-		log.Printf("⚠️ 尚未检测到配置节点，系统正在初始化并创建框架包至：[%s]", cfgFile)
-		if err := os.MkdirAll(filepath.Dir(cfgFile), 0755); err != nil {
-			log.Fatalf("❌ 构建部署文件夹遇到致命阻塞: %v", err)
-		}
+	viper.SetConfigFile(cfgFile)
+	viper.SetConfigType("yaml")
 
-		defaultYaml := `# 123pan 私人图床配置文件
+	// 映射环境变量并设置默认值防穿透，让用户能够通过 Docker ENV 变量纯净启动！
+	viper.AutomaticEnv()
+	viper.SetDefault("port", 8080)
+	viper.SetDefault("custom_domain", "")
+	viper.SetDefault("client_id", "")
+	viper.SetDefault("client_secret", "")
+	viper.SetDefault("parent_file_id", "")
+	viper.SetDefault("api_token", "")
+
+	err := viper.ReadInConfig()
+
+	// 【部署容错机制】：当没有配置文件，且！系统环境变量中也没有提取到 client_id 等有效配置时，才触发布署断绝。
+	if err != nil && viper.GetString("client_id") == "" {
+		if _, statErr := os.Stat(cfgFile); os.IsNotExist(statErr) {
+			log.Printf("⚠️ 尚未检测到物理配置节点及外部环境变量，系统正在初始化框架包至：[%s]", cfgFile)
+			if err := os.MkdirAll(filepath.Dir(cfgFile), 0755); err != nil {
+				log.Fatalf("❌ 构建部署文件夹遇到致命阻塞: %v", err)
+			}
+
+			defaultYaml := `# 123pan 私人图床配置文件
 
 # 服务器端口
 port: 8080
@@ -44,23 +59,13 @@ parent_file_id: ""
 # 您的专属大门密匙！暴露公网请千万修改它防御盗刷
 api_token: "PRIVATE_123_KEY"
 `
-		if err := os.WriteFile(cfgFile, []byte(defaultYaml), 0644); err != nil {
-			log.Fatalf("❌ 框架配置文件剥离解压失败: %v", err)
+			if err := os.WriteFile(cfgFile, []byte(defaultYaml), 0644); err != nil {
+				log.Fatalf("❌ 框架配置文件剥离解压失败: %v", err)
+			}
+
+			// 主动断开并友善通知管理员
+			log.Fatalf("✅ 底层初始部署圆满完成！你可以打开刚生成的 %s 填写密钥，或者直接通过在 Docker/系统环境变量中注入 CLIENT_ID 等参数来免密运行！", cfgFile)
 		}
-
-		// 主动断开并友善通知管理员
-		log.Fatalf("✅ 系统底层初始部署圆满完成！请打开刚生成的 %s 文件，填入属于你的密钥，然后再重新运行我！", cfgFile)
-	}
-
-	viper.SetConfigFile(cfgFile)
-	viper.SetConfigType("yaml")
-
-	// 默认值
-	viper.SetDefault("port", 8080)
-	viper.SetDefault("custom_domain", "")
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("配置文件读取失败: %v", err)
 	}
 
 	if err := viper.Unmarshal(&GlobalConfig); err != nil {

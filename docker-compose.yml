@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  imagehost:
+    build: .
+    # 如果你不想编译而是直接拉你刚才推到云端发版的镜像，可以打开下面这行：
+    # image: sakuradairong/123pan-imagehost:latest
+    container_name: 123pan-imagehost
+    restart: unless-stopped
+    ports:
+      # 左边是暴露给外部（即你的访问端口），右边是容器内运行端口
+      - "8080:8080"
+    environment:
+      # 【无文件纯净启动模式】直接把秘钥通过变量投射进去，底层不会再去管 config.yaml 存不存在了！
+      - PORT=8080
+      - CLIENT_ID=这里输入你的客户端ID
+      - CLIENT_SECRET=这里填你的密钥Secret
+      - PARENT_FILE_ID=这里留下目标文件夹ID如果不填就放根目录
+      - API_TOKEN=PRIVATE_123_KEY  # 请千万修改它防御野生网络扫描盗刷
+      - TZ=Asia/Shanghai
+    volumes:
+      # 如果你还是偏爱通过改动本地物理文件的老式习惯来管理配置，取消下面的注释即可。
+      # 此时你可以忽略上面的 environment 变量堆。
+      # - ./conf:/app/conf
