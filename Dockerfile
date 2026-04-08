@@ -1,12 +1,11 @@
 # ==== 第一阶段: 编译打包层 ====
-FROM golang:1.21-alpine AS builder
+FROM golang:alpine AS builder
 
-# 配置国内高速 Go 代理环境，开启跨平台交叉编译所需变量
+# 释放跨平台交叉编译的限制 (移除了大陆专供的 GOPROXY，避免在 Github 官方机房海外服务器中产生网络不兼容报错)
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
-    GOARCH=amd64 \
-    GOPROXY=https://goproxy.cn,direct
+    GOARCH=amd64
 
 WORKDIR /app
 
