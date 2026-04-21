@@ -4,41 +4,38 @@ import (
 	"fmt"
 	"strings"
 
-	"imagehost/internal/config"
 	"imagehost/internal/pan123"
 )
 
 type ImageService struct {
-	client *pan123.Client
+	client       *pan123.Client
+	parentFileID string
+	customDomain string
 }
 
-func NewImageService(client *pan123.Client) *ImageService {
-	return &ImageService{client: client}
+func NewImageService(client *pan123.Client, parentFileID, customDomain string) *ImageService {
+	return &ImageService{
+		client:       client,
+		parentFileID: parentFileID,
+		customDomain: strings.TrimRight(customDomain, "/"),
+	}
 }
 
-// GetImageItems 获取图床列表格式化信息
 func (s *ImageService) GetImageItems() ([]pan123.FileItem, error) {
-	// 获取前 100 张即可
-	items, _, err := s.client.GetFileList(config.GlobalConfig.ParentFileID, 100, "")
+	items, _, err := s.client.GetFileList(s.parentFileID, 100, "")
 	if err != nil {
-		return nil, fmt.Errorf("获取列表异常: %w", err)
+		return nil, fmt.Errorf("获取列表失败: %w", err)
 	}
 
-	domain := strings.TrimRight(config.GlobalConfig.CustomDomain, "/")
-
-	// 格式化清理，如果有设置自定义解析，则将直链全部附魔为指定域名
 	for i := range items {
-		// 如果 123pan 源生返回了 userSelfURL，可以优先。如果没有且我们配了 custom_domain，尝试通过拼接提供后备访问链
-		if items[i].UserSelfURL == "" && domain != "" {
-			// 一些简易替换，具体规则需按你在 123pan 的直链白名单空间里设置来调整
-			items[i].UserSelfURL = fmt.Sprintf("%s/%s", domain, items[i].Filename)
+		if items[i].UserSelfURL == "" && s.customDomain != "" {
+			items[i].UserSelfURL = fmt.Sprintf("%s/%s", s.customDomain, items[i].Filename)
 		}
 	}
 
 	return items, nil
 }
 
-// DeleteImages 删除单张或多张
 func (s *ImageService) DeleteImages(ids []string) error {
 	if len(ids) == 0 {
 		return nil

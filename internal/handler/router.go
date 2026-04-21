@@ -10,17 +10,27 @@ import (
 	"imagehost/static"
 )
 
-// AuthMiddleware 核心 API 保护护卫
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	}
+}
+
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenCfg := config.GlobalConfig.APIToken
-		// 如果配置文件放空了代表使用者放弃防御
 		if tokenCfg == "" {
 			c.Next()
 			return
 		}
 
-		// 适配支持 Header 注入 (WEB端拦截器) 或者 查询字符串 (简化图床软件推送提取)
 		authHeader := c.GetHeader("Authorization")
 		queryToken := c.Query("token")
 
@@ -33,8 +43,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			clientToken = queryToken
 		}
 
-		// 【防护高级演练】拦截网络侧信道 Timing 定时猜测攻击 
-		// (通过将比较强行推至相同的微小汇编运行时间从而防止密钥逐字枚举)
+		// constant-time compare prevents timing-based token enumeration
 		if subtle.ConstantTimeCompare([]byte(clientToken), []byte(tokenCfg)) != 1 {
 			c.JSON(http.StatusForbidden, gin.H{
 				"code":    403,
@@ -43,23 +52,20 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		c.Next()
 	}
 }
 
-// ConfigureRoutes 注册所有的 API 路由和静态资源
 func ConfigureRoutes(r *gin.Engine, imgHandler *ImageHandler, upHandler *UploadHandler) {
-	// API 分组进行统一下挂网门，使用中间件强权控制
 	api := r.Group("/api")
-	api.Use(AuthMiddleware()) // 全部保护！
+	api.Use(AuthMiddleware())
 	{
-		api.POST("/upload", upHandler.HandleUpload) // 接收表单 file 字段传图
-		api.GET("/images", imgHandler.HandleList)      // 瀑布流展示列表获取
-		api.DELETE("/images/:id", imgHandler.HandleDelete) // 删除图片
+		api.POST("/upload", upHandler.HandleUpload)
+		api.GET("/images", imgHandler.HandleList)
+		api.DELETE("/images/:id", imgHandler.HandleDelete)
 	}
 
-	// 静态资源：图床首页前端，这部分无需密码即可被公网下载渲染	// 【全静态内嵌化架构升级】无须再依赖同目录下的 static 文件夹！
 	r.StaticFS("/static", http.FS(static.FS))
 	r.GET("/", func(c *gin.Context) {
 		htmlData, err := static.FS.ReadFile("index.html")
