@@ -63,10 +63,10 @@ type UploadAsyncResultRespData struct {
 
 // FileListReq 取文件列表
 type FileListReq struct {
-	ParentFileID string `json:"parentFileId"`
-	Limit        int    `json:"limit"` // 最大不能超过 100
-	LastFileID   string `json:"lastFileId,omitempty"` // 用于分页，如果是第一页直接留空
-	Type         int    `json:"type"`  //  固定填 1
+	ParentFileID string `json:"parentFileID"`          // 请求字段统一使用 parentFileID（大写 D）
+	Limit        int    `json:"limit"`                 // 最大不能超过 100
+	LastFileID   string `json:"lastFileID,omitempty"`  // 分页游标
+	Type         int    `json:"type"`                  // 固定填 1
 }
 
 type FileItem struct {
@@ -103,4 +103,3 @@ type AccessTokenRespData struct {
 	AccessToken string `json:"accessToken"`
 	ExpiredAt   string `json:"expiredAt"`
 }
-

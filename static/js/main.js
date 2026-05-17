@@ -121,10 +121,12 @@ async function uploadFile(file) {
     const queue = document.getElementById('upload-queue');
     const item = document.createElement('div');
     item.className = 'queue-item';
-    item.innerHTML = `
-        <span>正在上传: ${file.name}</span>
-        <div class="loader"></div>
-    `;
+    const span = document.createElement('span');
+    span.textContent = '正在上传: ' + file.name;
+    item.appendChild(span);
+    const loader = document.createElement('div');
+    loader.className = 'loader';
+    item.appendChild(loader);
     queue.appendChild(item);
 
     const formData = new FormData();
@@ -159,9 +161,11 @@ async function loadImages() {
         const response = await fetch('/api/images');
         if (response.status !== 200) {
             if (response.status === 403) {
-                 document.getElementById('stats-counter').textContent = '未授权验证';
+                document.getElementById('stats-counter').textContent = '未授权验证';
+            } else {
+                showToast('获取图片列表失败 (' + response.status + ')', 'error');
+                document.getElementById('stats-counter').textContent = '获取失败';
             }
-            return;
         }
 
         const result = await response.json();
@@ -185,32 +189,67 @@ function renderGallery(images) {
     grid.innerHTML = '';
 
     if (images.length === 0) {
-       grid.innerHTML = '<span style="color:var(--text-muted); font-size:14px;">暂无图片</span>';
-       return;
+        const emptyMsg = document.createElement('span');
+        emptyMsg.style.color = 'var(--text-muted)';
+        emptyMsg.style.fontSize = '14px';
+        emptyMsg.textContent = '暂无图片';
+        grid.appendChild(emptyMsg);
+        return;
     }
 
     images.forEach(img => {
         const kbSize = (img.size / 1024).toFixed(1);
-        
+        const finalUrl = img.url || img.origin_url || '';
+        const safeName = img.name || '';
+        const createdAt = img.created_at || '';
+
         const card = document.createElement('div');
         card.className = 'img-card';
-        const finalUrl = img.url || img.origin_url;
+        card.setAttribute('role', 'figure');
 
-        const safeName = (img.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        const imgEl = document.createElement('img');
+        imgEl.src = finalUrl;
+        imgEl.alt = safeName;
+        imgEl.loading = 'lazy';
+        imgEl.onerror = function () {
+            this.src = "data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27%23ef4444%27%3E%3Cpath d=%27M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-7v2h2v-2h-2zm0-8v6h2V7h-2z%27/%3E%3C/svg%3E";
+        };
+        card.appendChild(imgEl);
 
-        card.innerHTML = `
-            <img src="${finalUrl}" alt="${safeName}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'%23ef4444\\'%3E%3Cpath d=\\'M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-7v2h2v-2h-2zm0-8v6h2V7h-2z\\'/%3E%3C/svg%3E';">
-            <div class="card-overlay">
-                <div class="card-info">
-                    <strong>${safeName}</strong> <br/>
-                    ${kbSize} KB • ${new Date(img.created_at).toLocaleDateString()}
-                </div>
-                <div class="card-actions">
-                    <button class="btn-action btn-copy" onclick="copyUrl('${finalUrl}')">复制链接</button>
-                    <button class="btn-action btn-del" onclick="deleteImage('${img.id}', '${safeName}')">删除</button>
-                </div>
-            </div>
-        `;
+        const overlay = document.createElement('div');
+        overlay.className = 'card-overlay';
+
+        const info = document.createElement('div');
+        info.className = 'card-info';
+        const nameStrong = document.createElement('strong');
+        nameStrong.textContent = safeName;
+        info.appendChild(nameStrong);
+        info.appendChild(document.createElement('br'));
+        let dateStr = kbSize + ' KB';
+        if (createdAt) {
+            const d = new Date(createdAt);
+            dateStr += ' • ' + (isNaN(d.getTime()) ? createdAt : d.toLocaleDateString());
+        }
+        info.appendChild(document.createTextNode(dateStr));
+        overlay.appendChild(info);
+
+        const actions = document.createElement('div');
+        actions.className = 'card-actions';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn-action btn-copy';
+        copyBtn.textContent = '复制链接';
+        copyBtn.addEventListener('click', function () { copyUrl(finalUrl); });
+        actions.appendChild(copyBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-action btn-del';
+        delBtn.textContent = '删除';
+        delBtn.addEventListener('click', function () { deleteImage(img.id, safeName); });
+        actions.appendChild(delBtn);
+
+        overlay.appendChild(actions);
+        card.appendChild(overlay);
         grid.appendChild(card);
     });
 }

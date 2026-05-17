@@ -17,7 +17,7 @@ func NewImageService(client *pan123.Client, parentFileID, customDomain string) *
 	return &ImageService{
 		client:       client,
 		parentFileID: parentFileID,
-		customDomain: strings.TrimRight(customDomain, "/"),
+		customDomain: strings.TrimSuffix(customDomain, "/"),
 	}
 }
 

@@ -22,7 +22,7 @@ func NewUploadService(client *pan123.Client, parentFileID, customDomain string) 
 	return &UploadService{
 		client:       client,
 		parentFileID: parentFileID,
-		customDomain: strings.TrimRight(customDomain, "/"),
+		customDomain: strings.TrimSuffix(customDomain, "/"),
 	}
 }
 
@@ -55,15 +55,41 @@ func (s *UploadService) UploadFile(fileHeader *multipart.FileHeader) (pan123.Fil
 		log.Printf("[上传] 文件 %s 命中秒传", fileName)
 	} else {
 		preuploadID := createResp.PreuploadID
+		sliceSize := createResp.SliceSize
 
-		urlResp, err := s.client.GetUploadURL(preuploadID, 1)
-		if err != nil {
-			return pan123.FileItem{}, fmt.Errorf("123pan 获取上传地址失败: %w", err)
-		}
+		if sliceSize == 0 || size <= sliceSize {
+			// 单分片上传
+			urlResp, err := s.client.GetUploadURL(preuploadID, 1)
+			if err != nil {
+				return pan123.FileItem{}, fmt.Errorf("123pan 获取上传地址失败: %w", err)
+			}
+			log.Printf("[上传] 推送 %s 到 123pan (%d bytes)...", fileName, size)
+			if err = s.client.DoRawPUT(urlResp.PresignedURL, file, size); err != nil {
+				return pan123.FileItem{}, fmt.Errorf("123pan 数据上传失败: %w", err)
+			}
+		} else {
+			// 多分片上传
+			numSlices := int((size + sliceSize - 1) / sliceSize)
+			log.Printf("[上传] %s 分 %d 片上传播 (sliceSize=%d)", fileName, numSlices, sliceSize)
+			for i := 0; i < numSlices; i++ {
+				sliceNo := i + 1
+				offset := int64(i) * sliceSize
+				readSize := sliceSize
+				if offset+readSize > size {
+					readSize = size - offset
+				}
 
-		log.Printf("[上传] 推送 %s 到 123pan (%d bytes)...", fileName, size)
-		if err = s.client.DoRawPUT(urlResp.PresignedURL, file, size); err != nil {
-			return pan123.FileItem{}, fmt.Errorf("123pan 数据上传失败: %w", err)
+				urlResp, err := s.client.GetUploadURL(preuploadID, sliceNo)
+				if err != nil {
+					return pan123.FileItem{}, fmt.Errorf("123pan 获取第%d片上传达址失败: %w", sliceNo, err)
+				}
+
+				sectionReader := io.NewSectionReader(file, offset, readSize)
+				log.Printf("[上传] %s 第%d片 (%d bytes offset=%d)...", fileName, sliceNo, readSize, offset)
+				if err = s.client.DoRawPUT(urlResp.PresignedURL, sectionReader, readSize); err != nil {
+					return pan123.FileItem{}, fmt.Errorf("123pan 第%d片数据上传失败: %w", sliceNo, err)
+				}
+			}
 		}
 
 		completeResp, err := s.client.UploadComplete(preuploadID)
