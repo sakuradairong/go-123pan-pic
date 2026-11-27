@@ -15,10 +15,9 @@ services:
       - PORT=8080
       - CLIENT_ID=这里输入你的客户端ID
       - CLIENT_SECRET=这里填你的密钥Secret
-      - PARENT_FILE_ID=这里留下目标文件夹ID如果不填就放根目录
-      - API_TOKEN=PRIVATE_123_KEY  # 请千万修改它防御野生网络扫描盗刷
+      - PARENT_FILE_ID= # 留空使用根目录
+      - API_TOKEN=${API_TOKEN-PRIVATE_123_KEY}  # 设置环境变量或在这里替换示例密钥
       - TZ=Asia/Shanghai
-    volumes:
-      # 如果你还是偏爱通过改动本地物理文件的老式习惯来管理配置，取消下面的注释即可。
-      # 此时你可以忽略上面的 environment 变量堆。
+    # 如使用配置文件，请移除上面对应的环境变量并启用以下两行。
+    # volumes:
       # - ./conf:/app/conf

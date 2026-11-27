@@ -2,13 +2,12 @@
 FROM golang:alpine AS builder
 
 # 第一时间安装最详尽的根证书与时域数据源，这是最后提取所必须的物质
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata && mkdir -p -m 1777 /runtime/tmp
 
 # 开启 CGO_ENABLED=0，这是逃逸出系统依赖，实现真正的静态单文件极限打包的关键
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
-    GOOS=linux \
-    GOARCH=amd64
+    GOOS=linux
 
 WORKDIR /app
 
@@ -26,6 +25,7 @@ FROM scratch
 # 从刚才的工厂层提炼出我们的核心支撑数据（时间树与 HTTPS 证书）
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /runtime/ /
 
 ENV TZ=Asia/Shanghai
 

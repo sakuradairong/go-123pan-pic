@@ -68,6 +68,9 @@ func (c *Client) getToken() (string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("token request returned http status %d", resp.StatusCode)
+	}
 	var apiResp BaseResp
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return "", fmt.Errorf("decode token response error: %w", err)
@@ -80,6 +83,9 @@ func (c *Client) getToken() (string, error) {
 	var data AccessTokenRespData
 	if err := json.Unmarshal(apiResp.Data, &data); err != nil {
 		return "", fmt.Errorf("decode AccessTokenRespData error: %w", err)
+	}
+	if data.AccessToken == "" {
+		return "", fmt.Errorf("123pan returned an empty access token")
 	}
 
 	exp, err := time.Parse(time.RFC3339, data.ExpiredAt)
@@ -122,18 +128,22 @@ func (c *Client) DoJSONRequest(method, url string, body interface{}, target inte
 	}
 	defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response body error: %w", err)
-	}
-
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("http status %d, body: %s", resp.StatusCode, string(respBytes))
+		respBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		snippet := string(bytes.TrimSpace(respBytes))
+		if snippet != "" {
+			return fmt.Errorf("http status %d: %s", resp.StatusCode, snippet)
+		}
+		return fmt.Errorf("http status %d", resp.StatusCode)
 	}
 
 	if target != nil {
+		respBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("read response body error: %w", err)
+		}
 		if err := json.Unmarshal(respBytes, target); err != nil {
-			return fmt.Errorf("unmarshal response error: %w, payload: %s", err, string(respBytes))
+			return fmt.Errorf("unmarshal response error: %w", err)
 		}
 	}
 
@@ -141,10 +151,10 @@ func (c *Client) DoJSONRequest(method, url string, body interface{}, target inte
 }
 
 // DoRawPUT uploads binary data to a presigned URL without auth headers (required by 123pan).
-func (c *Client) DoRawPUT(url string, data io.Reader, size int64) error {
-	req, err := http.NewRequest("PUT", url, data)
+func (c *Client) DoRawPUT(presignedURL string, data io.Reader, size int64) error {
+	req, err := http.NewRequest("PUT", presignedURL, data)
 	if err != nil {
-		return fmt.Errorf("create put request error: %w", err)
+		return fmt.Errorf("invalid presigned upload URL")
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")
@@ -152,13 +162,13 @@ func (c *Client) DoRawPUT(url string, data io.Reader, size int64) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("PUT request failed: %w", err)
+		// Transport and redirect errors can include the signed URL.
+		return fmt.Errorf("PUT request to %s failed", req.URL.Hostname())
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("PUT http status %d, body: %s", resp.StatusCode, string(respBytes))
+		return fmt.Errorf("PUT http status %d", resp.StatusCode)
 	}
 
 	return nil

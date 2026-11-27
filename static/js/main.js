@@ -29,7 +29,7 @@ function saveAuth() {
         localStorage.setItem('pan_api_token', val);
         apiToken = val; 
         document.getElementById('auth-modal').style.display = 'none';
-        showToast('身份验证成功', 'success');
+        showToast('已保存 Token，正在验证');
         document.getElementById('auth-input').value = ''; 
         loadImages(); 
     } else {
@@ -159,22 +159,18 @@ async function uploadFile(file) {
 async function loadImages() {
     try {
         const response = await fetch('/api/images');
-        if (response.status !== 200) {
-            if (response.status === 403) {
-                document.getElementById('stats-counter').textContent = '未授权验证';
-            } else {
-                showToast('获取图片列表失败 (' + response.status + ')', 'error');
-                document.getElementById('stats-counter').textContent = '获取失败';
-            }
+        if (response.status === 403) {
+            document.getElementById('stats-counter').textContent = '未授权验证';
+            return;
         }
 
-        const result = await response.json();
+        const result = await response.json().catch(() => ({}));
         
-        if (result.code === 0 || result.code === 200) {
+        if (response.ok && (result.code === 0 || result.code === 200)) {
             renderGallery(result.data || []);
             document.getElementById('stats-counter').textContent = `共 ${(result.data || []).length} 张图片`;
         } else {
-            showToast(`加载失败: ${result.message}`, 'error');
+            showToast(`加载失败: ${result.message || 'HTTP ' + response.status}`, 'error');
             document.getElementById('stats-counter').textContent = '获取失败';
         }
     } catch (err) {
@@ -255,6 +251,14 @@ function renderGallery(images) {
 }
 
 function copyUrl(url) {
+    if (!url) {
+        showToast('此图片没有可复制的直链', 'error');
+        return;
+    }
+    if (!navigator.clipboard) {
+        window.prompt('请手动复制直链', url);
+        return;
+    }
     navigator.clipboard.writeText(url).then(() => {
         showToast('直链已复制到剪贴板', 'success');
     }).catch(err => {
@@ -267,15 +271,15 @@ async function deleteImage(id, name) {
 
     try {
         const response = await fetch(`/api/images/${id}`, { method: 'DELETE' });
-        if (response.status !== 200) return; 
+        if (response.status === 403) return;
 
-        const result = await response.json();
+        const result = await response.json().catch(() => ({}));
         
-        if (result.code === 0 || result.code === 200) {
+        if (response.ok && (result.code === 0 || result.code === 200)) {
             showToast(`[${name}] 已删除`, 'success');
             loadImages();
         } else {
-            showToast(`删除失败: ${result.message}`, 'error');
+            showToast(`删除失败: ${result.message || 'HTTP ' + response.status}`, 'error');
         }
     } catch (err) {
         showToast('删除网络请求失败', 'error');

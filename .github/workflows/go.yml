@@ -92,10 +92,10 @@ jobs:
         with:
           # 自动组合 "你的名字 / 项目名"
           images: ${{ secrets.DOCKERHUB_USERNAME }}/123pan-imagehost
+          # 在默认分支上额外发布 latest 标签。
           tags: |
             type=ref,event=branch
             type=ref,event=tag
-            # 原本的 latest 标签会在 master/main 分支时被自动赋予
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push to Space (核心推流指令)

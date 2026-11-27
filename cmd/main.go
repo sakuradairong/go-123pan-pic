@@ -29,7 +29,12 @@ func main() {
 	imageHandler := handler.NewImageHandler(imageSvc)
 
 	gin.SetMode(gin.ReleaseMode)
-	r := gin.Default()
+	r := gin.New()
+	// ShareX clients may authenticate via the query string.
+	r.Use(gin.LoggerWithFormatter(func(p gin.LogFormatterParams) string {
+		return fmt.Sprintf("[GIN] %s | %d | %v | %s | %s %q\n",
+			p.TimeStamp.Format("2006/01/02 15:04:05"), p.StatusCode, p.Latency, p.ClientIP, p.Method, p.Request.URL.EscapedPath())
+	}), gin.Recovery())
 	r.MaxMultipartMemory = 10 << 20
 	r.Use(handler.CORSMiddleware())
 

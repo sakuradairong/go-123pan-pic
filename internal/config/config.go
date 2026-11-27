@@ -37,8 +37,11 @@ func InitConfig(cfgFile string) {
 	err := viper.ReadInConfig()
 
 	// 【部署容错机制】：当没有配置文件，且！系统环境变量中也没有提取到 client_id 等有效配置时，才触发布署断绝。
-	if err != nil && viper.GetString("client_id") == "" {
-		if _, statErr := os.Stat(cfgFile); os.IsNotExist(statErr) {
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Fatalf("读取配置文件 %s 失败: %v", cfgFile, err)
+		}
+		if viper.GetString("client_id") == "" {
 			log.Printf("⚠️ 尚未检测到物理配置节点及外部环境变量，系统正在初始化框架包至：[%s]", cfgFile)
 			if err := os.MkdirAll(filepath.Dir(cfgFile), 0755); err != nil {
 				log.Fatalf("❌ 构建部署文件夹遇到致命阻塞: %v", err)
@@ -59,7 +62,7 @@ parent_file_id: ""
 # 您的专属大门密匙！暴露公网请千万修改它防御盗刷
 api_token: "PRIVATE_123_KEY"
 `
-			if err := os.WriteFile(cfgFile, []byte(defaultYaml), 0644); err != nil {
+			if err := os.WriteFile(cfgFile, []byte(defaultYaml), 0600); err != nil {
 				log.Fatalf("❌ 框架配置文件剥离解压失败: %v", err)
 			}
 
@@ -86,6 +89,8 @@ api_token: "PRIVATE_123_KEY"
 
 	if GlobalConfig.APIToken == "" {
 		log.Println("【安全警告】您的 api_token 配置为空，图床接口处于裸奔危险状态！")
+	} else if GlobalConfig.APIToken == "PRIVATE_123_KEY" {
+		log.Println("【安全警告】您正在使用默认示例 api_token (PRIVATE_123_KEY)，暴露公网前请及时替换！")
 	}
 
 	log.Println("成功加载配置文件，服务端口:", GlobalConfig.Port)

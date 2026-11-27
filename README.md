@@ -105,7 +105,7 @@ services:
       - CLIENT_ID=请去123pan开放平台申请必填
       - CLIENT_SECRET=请去123pan开放平台申请必填
       - PARENT_FILE_ID= # 专用上传目标的文件夹ID(如果传到根目录则删掉注释留空)
-      - API_TOKEN=PRIVATE_123_KEY # 拦截门票：强烈建议设为复杂密码防御公网盗刷
+      - API_TOKEN=${API_TOKEN:?请先设置自己的 API_TOKEN 环境变量}
       - TZ=Asia/Shanghai
 ```
 
@@ -130,7 +130,7 @@ docker run -d \
   -e CLIENT_ID="【去123pan获取并在引流号内填入】" \
   -e CLIENT_SECRET="【去123pan获取并在引号内填入】" \
   -e PARENT_FILE_ID="" \
-  -e API_TOKEN="PRIVATE_123_KEY" \
+  -e API_TOKEN="${API_TOKEN:?请先设置自己的 API_TOKEN 环境变量}" \
   -e TZ="Asia/Shanghai" \
   rainysyc/123pan-imagehost:latest
 ```
@@ -139,7 +139,7 @@ docker run -d \
 
 ## 🛠️ 第三方截图工具接入 (ShareX 等)
 
-本图床严格遵守 `RESTful API` 规范，对第三方工具接入极为友好。以下使用 **ShareX** 为例进行配置：
+要让上传响应中的 `url` 可直接用于 **ShareX**，请先将 `custom_domain`（环境变量 `CUSTOM_DOMAIN`）设为可按文件名访问图片的域名前缀。留空时上传仍可完成，云盘下发的链接可从相册列表获取。
 
 1. 添加 **自定义上传者**；
 2. **请求 URL**：`http://修改为你的IP或域名:8080/api/upload` 

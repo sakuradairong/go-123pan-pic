@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"mime/multipart"
+	"net/url"
 	"strings"
 	"time"
 
@@ -40,7 +41,6 @@ func (s *UploadService) UploadFile(fileHeader *multipart.FileHeader) (pan123.Fil
 	etag := fmt.Sprintf("%x", h.Sum(nil))
 	size := fileHeader.Size
 
-	file.Seek(0, io.SeekStart)
 	fileName := fileHeader.Filename
 
 	var fileID string
@@ -56,6 +56,9 @@ func (s *UploadService) UploadFile(fileHeader *multipart.FileHeader) (pan123.Fil
 	} else {
 		preuploadID := createResp.PreuploadID
 		sliceSize := createResp.SliceSize
+		if sliceSize < 0 {
+			return pan123.FileItem{}, fmt.Errorf("123pan 返回无效分片大小: %d", sliceSize)
+		}
 
 		if sliceSize == 0 || size <= sliceSize {
 			// 单分片上传
@@ -64,7 +67,7 @@ func (s *UploadService) UploadFile(fileHeader *multipart.FileHeader) (pan123.Fil
 				return pan123.FileItem{}, fmt.Errorf("123pan 获取上传地址失败: %w", err)
 			}
 			log.Printf("[上传] 推送 %s 到 123pan (%d bytes)...", fileName, size)
-			if err = s.client.DoRawPUT(urlResp.PresignedURL, file, size); err != nil {
+			if err = s.client.DoRawPUT(urlResp.PresignedURL, io.NewSectionReader(file, 0, size), size); err != nil {
 				return pan123.FileItem{}, fmt.Errorf("123pan 数据上传失败: %w", err)
 			}
 		} else {
@@ -121,11 +124,14 @@ func (s *UploadService) UploadFile(fileHeader *multipart.FileHeader) (pan123.Fil
 		}
 	}
 
+	if fileID == "" {
+		return pan123.FileItem{}, fmt.Errorf("123pan 未返回上传文件 ID")
+	}
 	log.Printf("[上传] %s 完成, ID: %s", fileName, fileID)
 
 	downloadURL := ""
 	if s.customDomain != "" {
-		downloadURL = fmt.Sprintf("%s/%s", s.customDomain, fileName)
+		downloadURL = s.customDomain + "/" + url.PathEscape(fileName)
 	}
 
 	return pan123.FileItem{

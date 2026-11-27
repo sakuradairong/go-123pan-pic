@@ -32,12 +32,18 @@ func (c *Client) GetFileList(parentFileID string, limit int, lastFileID string) 
 func (c *Client) DeleteFiles(fileIDs []string) error {
 	reqBody := DeleteFileReq{FileIDs: fileIDs}
 
-	var resp BaseResp
+	var resp struct {
+		Code    *int   `json:"code"`
+		Message string `json:"message"`
+	}
 	if err := c.DoJSONRequest("POST", APIBaseURL+"/api/v1/oss/file/delete", reqBody, &resp); err != nil {
 		return err
 	}
-	if resp.Code != 0 {
-		return fmt.Errorf("123pan API error (delete file), code: %d, msg: %s", resp.Code, resp.Message)
+	if resp.Code == nil {
+		return fmt.Errorf("123pan delete response is missing a status code")
+	}
+	if *resp.Code != 0 {
+		return fmt.Errorf("123pan API error (delete file), code: %d, msg: %s", *resp.Code, resp.Message)
 	}
 
 	return nil

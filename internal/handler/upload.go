@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+	"io"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -19,13 +21,20 @@ func NewUploadHandler(svc *service.UploadService) *UploadHandler {
 }
 
 func (h *UploadHandler) HandleUpload(c *gin.Context) {
+	const maxFileSize int64 = 50 << 20
+	// Allow room for multipart headers and fields while bounding temporary disk usage.
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize+(1<<20))
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"code": 413, "message": "上传请求过大，文件最大支持 50MB。"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无法收到图片文件: " + err.Error()})
 		return
 	}
 
-	const maxFileSize int64 = 50 << 20 // 50MB
 	if fileHeader.Size > maxFileSize {
 		c.JSON(http.StatusRequestEntityTooLarge, gin.H{
 			"code":    413,
@@ -35,14 +44,14 @@ func (h *UploadHandler) HandleUpload(c *gin.Context) {
 	}
 
 	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
-	validExts := map[string]bool{
-		".jpg": true, ".jpeg": true, ".png": true,
-		".gif": true, ".webp": true, ".svg": true, ".bmp": true,
+	validExts := map[string]string{
+		".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+		".gif": "image/gif", ".webp": "image/webp", ".bmp": "image/bmp",
 	}
-	if !validExts[ext] {
+	if validExts[ext] == "" {
 		c.JSON(http.StatusUnsupportedMediaType, gin.H{
 			"code":    415,
-			"message": "仅支持上传图片格式（jpg/png/gif/webp/svg/bmp）。",
+			"message": "仅支持上传图片格式（jpg/png/gif/webp/bmp）。",
 		})
 		return
 	}
@@ -59,14 +68,14 @@ func (h *UploadHandler) HandleUpload(c *gin.Context) {
 	}
 
 	buf := make([]byte, 512)
-	_, err = fileReader.Read(buf)
+	n, err := io.ReadFull(fileReader, buf)
 	fileReader.Close()
-	if err != nil && err.Error() != "EOF" {
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取文件头失败: " + err.Error()})
 		return
 	}
 
-	mimeType := http.DetectContentType(buf)
+	mimeType := http.DetectContentType(buf[:n])
 	if !strings.HasPrefix(mimeType, "image/") {
 		c.JSON(http.StatusUnsupportedMediaType, gin.H{
 			"code":    415,
